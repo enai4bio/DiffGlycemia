@@ -172,7 +172,7 @@ class MLP(nn.Module):
         """
         super().__init__()
         if isinstance(dropouts, float):
-            dropouts = [dropouts] * len(d_layers) # [0.0, 0.0, 0.0]
+            dropouts = [dropouts] * len(d_layers) 
         assert len(d_layers) == len(dropouts)
         assert activation not in ['ReGLU', 'GEGLU']
 
@@ -188,8 +188,7 @@ class MLP(nn.Module):
                 for i, (d, dropout) in enumerate(zip(d_layers, dropouts))
             ]
         )
-        self.head = nn.Linear(d_layers[-1] if d_layers else d_in, d_out) # Linear(in_features=78, out_features=28, bias=True)
-
+        self.head = nn.Linear(d_layers[-1] if d_layers else d_in, d_out) 
     @classmethod
     def make_baseline( # from Line #437
         cls: Type['MLP'],
@@ -388,20 +387,6 @@ class ResNet(nn.Module):
         dropout_second: float,
         d_out: int,
     ) -> 'ResNet':
-        """Create a "baseline" `ResNet`.
-        This variation of ResNet was used in [gorishniy2021revisiting]. Features:
-        * :code:`Activation` = :code:`ReLU`
-        * :code:`Norm` = :code:`BatchNorm1d`
-        Args:
-            d_in: the input size
-            n_blocks: the number of Blocks
-            d_main: the input size (or, equivalently, the output size) of each Block
-            d_hidden: the output size of the first linear layer in each Block
-            dropout_first: the dropout rate of the first dropout layer in each Block.
-            dropout_second: the dropout rate of the second dropout layer in each Block.
-        References:
-            * [gorishniy2021revisiting] Yury Gorishniy, Ivan Rubachev, Valentin Khrulkov, Artem Babenko, "Revisiting Deep Learning Models for Tabular Data", 2021
-        """
         return cls(
             d_in=d_in,
             n_blocks=n_blocks,
@@ -420,11 +405,10 @@ class ResNet(nn.Module):
         x = self.blocks(x)
         x = self.head(x)
         return x
-#### For diffusion 
+
 
 class MLPDiffusion(nn.Module):
-    # def __init__(self, d_in, num_classes, is_y_cond, rtdl_params, dim_t = 128): # rtdl_params: 网络参数
-    def __init__(self, raw_config): # rtdl_params: 网络参数
+    def __init__(self, raw_config):
         super().__init__()
 
         self.num_classes = num_classes = raw_config['data']['y']['num_classes'] 
@@ -433,21 +417,6 @@ class MLPDiffusion(nn.Module):
         d_layers = raw_config['train_mlp_params']['d_layers']
         dropout = raw_config['train_mlp_params']['dropout']
 
-        # self.is_y_cond = is_y_cond # True
-
-        # d0 = rtdl_params['d_layers'][0]
-        # rtdl_params['d_in'] = dim_t # 中间正态分布的维度:128
-        # rtdl_params['d_out'] = d_in # 还原到最初的dim：category feature个数 x nunique个数 + numerical feature 的个数 = 54
-
-
-        # self.mlp = MLP.make_baseline(**rtdl_params) # jump to Line #194
-        # MLP( # denoise-part
-        #     d_in=d_in, # 128 从噪音的维度开始
-        #     d_layers=d_layers,  [78, 78, 78] 
-        #     dropouts=dropout, # 0.0
-        #     activation='ReLU',
-        #     d_out=d_out, # 54 回到最初的维度
-        # )
         self.mlp = MLP(
             d_in=dim_t,
             d_layers=d_layers,  # type: ignore
@@ -455,79 +424,20 @@ class MLPDiffusion(nn.Module):
             activation='ReLU',
             d_out=dim_in,
         )
-
-
-        self.label_emb = nn.Embedding(self.num_classes, dim_t) # y的embedding： Embedding(2, 128)
-
-        self.proj = nn.Linear(dim_in, dim_t) # dim_t = 128 # 特征初始投影; Linear(in_features=34or54, out_features=128, bias=True)
-
-
+        self.label_emb = nn.Embedding(self.num_classes, dim_t)
+        self.proj = nn.Linear(dim_in, dim_t)
         self.time_embed = nn.Sequential(
-            nn.Linear(dim_t, dim_t), # dim_t = 128
+            nn.Linear(dim_t, dim_t), 
             nn.SiLU(),
-            nn.Linear(dim_t, dim_t) # dim_t = 128
+            nn.Linear(dim_t, dim_t) 
         )
-        # Sequential(
-        #     (0): Linear(in_features=128, out_features=128, bias=True)
-        #     (1): SiLU()
-        #     (2): Linear(in_features=128, out_features=128, bias=True)
-        #     )
-
-
 
     def forward(self, x, timesteps, y=None):
-        # emb = self.time_embed(timestep_embedding(timesteps, self.dim_t)) # 通过timesteps计算的embedding： [2304, 1] x [1, 64] = [2304, 64]，即，预估：每个数据每个特征所增加的噪音，乘法的原因是：每个数据的所有特征所采用的timesteps是一致的，每个特征所采取的freq是一致，从而确定每个cell的噪音； # 一半cosine， 一半sine，先做 half = dim // 2； 文章公式（5）中的t_emb ; 通过timesteps预估噪音值产生的embedding只是在这个部分，下面两个分别是continue和category的embedding
         emb_t_e = timestep_embedding(timesteps, self.dim_t)
-        emb = self.time_embed(emb_t_e)  # 文章公式（5）中的t_emb 
-        emb += F.silu(self.label_emb(y.squeeze())) # torch.Size([32, 128])
-        # x = self.proj(x) + emb# 文章公式（5）中的Liner(x_in)； self.proj(x) 是头层神经网络，做 Linear(in_features=54, out_features=128, bias=True) 54是原始特征数，128是中间层维度
-        x = self.proj(x.to(torch.float32)) + emb# 文章公式（5）中的Liner(x_in)； self.proj(x) 是头层神经网络，做 Linear(in_features=54, out_features=128, bias=True) 54是原始特征数，128是中间层维度
-        return self.mlp(x) # 再过一层MLP
-
-
-# class MLPDiffusion(nn.Module):
-#     def __init__(self, d_in, num_classes, is_y_cond, rtdl_params, dim_t = 128): # rtdl_params: 网络参数
-#         super().__init__()
-#         self.dim_t = dim_t # mlp 的输入维度: 128
-#         self.num_classes = num_classes # num_classes ???
-#         self.is_y_cond = is_y_cond # is_y_cond ???
-
-#         # d0 = rtdl_params['d_layers'][0]
-
-#         rtdl_params['d_in'] = dim_t # 中间网络的维度
-#         rtdl_params['d_out'] = d_in # 还原到最初的dim：各个category feature 的 nunique + continuous feature 的个数
-
-#         self.mlp = MLP.make_baseline(**rtdl_params) # jump to Line #194
-
-#         if self.num_classes > 0 and is_y_cond:
-#             self.label_emb = nn.Embedding(self.num_classes, dim_t) # label embedding
-#         elif self.num_classes == 0 and is_y_cond:
-#             self.label_emb = nn.Linear(1, dim_t)
-        
-#         self.proj = nn.Linear(d_in, dim_t) # 特征初始投影
-#         self.time_embed = nn.Sequential(
-#             nn.Linear(dim_t, dim_t),
-#             nn.SiLU(),
-#             nn.Linear(dim_t, dim_t)
-#         )
-
-
-#     def forward(self, x, timesteps, y=None):
-#         # ----------------------------------------------------------------------------------------------
-#         # ----------------------------------------------------------------------------------------------
-#         emb = self.time_embed(timestep_embedding(timesteps, self.dim_t)) # 通过timesteps计算的embedding： [2304, 1] x [1, 64] = [2304, 64]，即，预估：每个数据每个特征所增加的噪音，乘法的原因是：每个数据的所有特征所采用的timesteps是一致的，每个特征所采取的freq是一致，从而确定每个cell的噪音； # 一半cosine， 一半sine，先做 half = dim // 2； 文章公式（5）中的t_emb ; 通过timesteps预估噪音值产生的embedding只是在这个部分，下面两个分别是continue和category的embedding
-#         # emb = timestep_embedding(timesteps, self.dim_t)
-#         # emb = self.time_embed(emb) 
-#         # ----------------------------------------------------------------------------------------------
-#         if self.is_y_cond and y is not None:
-#             if self.num_classes > 0:
-#                 y = y.squeeze()
-#             else:
-#                 y = y.resize(y.size(0), 1).float()
-#             emb += F.silu(self.label_emb(y)) #  这里加上了文章公式（5）中的y_emb : torch.Size([4096, 128])
-#         x = self.proj(x) + emb # 这里加上了文章公式（5）中的Liner(x_in), self.proj(x) 是头层神经网络，做 Linear(in_features=16, out_features=128, bias=True)
-#         return self.mlp(x) # 再过一层MLP
-
+        emb = self.time_embed(emb_t_e) 
+        emb += F.silu(self.label_emb(y.squeeze())) 
+        x = self.proj(x.to(torch.float32)) + emb
+        return self.mlp(x) 
 
 class ResNetDiffusion(nn.Module):
     def __init__(self, d_in, num_classes, rtdl_params, dim_t = 256):

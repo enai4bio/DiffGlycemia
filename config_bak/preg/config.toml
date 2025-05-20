@@ -1,0 +1,101 @@
+[main]
+work_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia"
+exp_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp"
+raw_config_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/config.toml"
+device = "cuda:0"
+n_trials = 1
+
+[data]
+real_data_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/data_training/preg/"
+lambdas_scalers_path = "data_training/preg/lambdas_scalers.pkl"
+numerical_feature_column_path = "numerical_feture_columns.csv"
+categorical_feature_column_path = "categorical_feature_columns.csv"
+
+[data.y]
+num_classes = 2
+label_column = "Adverse Pregnancy Outcome"
+
+[data.x]
+n_numerical_features = 8
+numerical_feature_columns = [
+    "Systolic Blood Pressure",
+    "Diastolic Blood Pressure",
+    "HbA1c",
+    "OGTT Insulin 60 min",
+    "OGTT Insulin 120 min",
+    "OGTT Insulin 180 min",
+    "Urea",
+    "Infant Weight",
+]
+n_categorical_features = 2
+categorical_feature_columns = [
+    "Surgical Method A",
+    "Surgical Method C",
+]
+num_classes = [
+    2,
+    2,
+]
+
+[train.T]
+normalization = "minmax"
+num_nan_policy = "__none__"
+cat_nan_policy = "__none__"
+cat_min_frequency = "__none__"
+cat_encoding = "__none__"
+y_policy = "default"
+seed = 0
+
+[train.main]
+seed = 0
+trial_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00"
+trained_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model"
+n_trained_model_dir_list = 3
+dataset_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/dataset_path.pkl"
+batch_size = 2408
+epoch = 8000
+steps = 8000
+change_val = "False"
+init_lr = 0.0002288113668475521
+anneal = "True"
+anneal_method = "linear"
+decay_rate = 0.3
+weight_decay = 0.0
+balance_loss_method = ""
+
+[train_mlp_params]
+dim_in = 12
+dim_t = 256
+d_layers = [
+    256,
+    256,
+    256,
+]
+dropout = 0.0
+
+[train_diffusion_params]
+n_timesteps = 1000
+multinomial_loss_type = "vb_stochastic"
+gaussian_loss_type = "mse"
+gaussian_parametrization = "eps"
+parametrization = "x0"
+scheduler = "cosine"
+
+[sample.main]
+best_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/step_008000"
+best_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/step_008000/diffusion.pt"
+seed = 2
+sample_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_02"
+n_sample_batches = 3
+n_generate_times = 10
+n_sample_times = 4
+balance_sample_method = ""
+smote_testset_only = ""
+d_in_similarity = "/media/jie/toshiba_4t/7exp_t/tang/preg/exp/trial_21/trained_model/step_1466/d_in_similarity.csv"
+average_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_05/trained_model/step_1362/move_ave.pt"
+
+[eval.main]
+epoch_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_02/epochs_008000_random_generated/"
+eval_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/eval/epochs_008000/sample_02"
+seed = 2
+shuffle_switch = "False"

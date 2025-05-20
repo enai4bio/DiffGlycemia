@@ -1,12 +1,13 @@
 [main]
-work_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox"
-exp_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp"
-raw_config_path = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/config.toml"
+work_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia"
+exp_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp"
+raw_config_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/config.toml"
 device = "cuda:0"
 n_trials = 1
 
 [data]
-real_data_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/data"
+real_data_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/data_training/cvd/"
+lambdas_scalers_path = "data_training/cvd/lambdas_scalers.pkl"
 numerical_feature_column_path = "numerical_feture_columns.csv"
 categorical_feature_column_path = "categorical_feature_columns.csv"
 
@@ -59,7 +60,7 @@ num_classes = [
 ]
 
 [train.T]
-normalization = "standard"
+normalization = "minmax"
 num_nan_policy = "__none__"
 cat_nan_policy = "__none__"
 cat_min_frequency = "__none__"
@@ -69,13 +70,13 @@ seed = 0
 
 [train.main]
 seed = 0
-trial_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00"
-trained_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/trained_model"
-n_trained_model_dir_list = 99
-dataset_path = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/trained_model/dataset_path.pkl"
+trial_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00"
+trained_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model"
+n_trained_model_dir_list = 3
+dataset_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/dataset_path.pkl"
 batch_size = 1767
-epoch = 8000
-steps = 8000
+epoch = 7500
+steps = 7500
 change_val = "False"
 init_lr = 0.0002288113668475521
 anneal = "False"
@@ -83,10 +84,6 @@ anneal_method = ""
 decay_rate = 0.0
 weight_decay = 0.0
 balance_loss_method = ""
-diffusion_moving_average = "False"
-log_start = 998
-log_every = 2000
-ema_every = 1
 
 [train_mlp_params]
 dim_in = 34
@@ -110,20 +107,20 @@ parametrization = "x0"
 scheduler = "cosine"
 
 [sample.main]
-best_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/trained_model/step_008000"
-best_model_path = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/trained_model/step_008000/diffusion.pt"
-seed = 14
-sample_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/sample_14"
-n_sample_batches = 15
+best_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/step_006136"
+best_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/step_006136/diffusion.pt"
+seed = 2
+sample_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_02"
+n_sample_batches = 3
 n_generate_times = 10
 n_sample_times = 4
 balance_sample_method = ""
 smote_testset_only = ""
 d_in_similarity = "/media/jie/toshiba_4t/7exp_t/tang/cvds/exp/trial_21/trained_model/step_1466/d_in_similarity.csv"
-average_model_path = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_05/trained_model/step_1362/move_ave.pt"
+average_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_05/trained_model/step_1362/move_ave.pt"
 
 [eval.main]
-epoch_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/sample_14/epochs_008000_random_generated/"
-eval_dir = "/media/jie/toshiba_4t/7exp_t/tang/cvds_4_box_cox/exp/trial_00/eval/epochs_008000/sample_14"
-seed = 14
+epoch_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_02/epochs_006136_random_generated/"
+eval_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/eval/epochs_006136/sample_02"
+seed = 2
 shuffle_switch = "False"

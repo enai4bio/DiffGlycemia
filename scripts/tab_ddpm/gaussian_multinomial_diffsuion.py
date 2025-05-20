@@ -29,7 +29,7 @@ import random
 import torch
 import torch.nn.functional as F
 
-
+import joblib
 
 """
 Based in part on: https://github.com/lucidrains/denoising-diffusion-pytorch/blob/5989f4c77eafcdc6be0fb4739f0f277a6dd7f7d8/denoising_diffusion_pytorch/denoising_diffusion_pytorch.py#L281
@@ -273,48 +273,46 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         super(GaussianMultinomialDiffusion, self).__init__()
 
         multinomial_loss_type = raw_config['train_diffusion_params']['multinomial_loss_type'] 
-        # assert multinomial_loss_type in ('vb_stochastic', 'vb_all')
         parametrization = raw_config['train_diffusion_params']['parametrization'] 
-        # assert parametrization in ('x0', 'direct')
 
         if multinomial_loss_type == 'vb_all':
             print('Computing the loss using the bound on _all_ timesteps.'
                   ' This is expensive both in terms of memory and computation.')
 
         self.device = raw_config['main']['device']
-        self.num_classes = raw_config['data']['x']['num_classes'] # it as a vector [K1, K2, ..., Km] categorical feature 的 nunique 的 list, 也就是K
-        self.num_numerical_features = raw_config['data']['x']['n_numerical_features'] # 14 or 34
+        self.num_classes = raw_config['data']['x']['num_classes'] 
+        self.num_numerical_features = raw_config['data']['x']['n_numerical_features'] #
         self.num_classes = np.array(self.num_classes)
         self.num_classes_expanded = torch.from_numpy(
-            np.concatenate([self.num_classes[i].repeat(self.num_classes[i]) for i in range(len(self.num_classes))])).to(self.device) #  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+            np.concatenate([self.num_classes[i].repeat(self.num_classes[i]) for i in range(len(self.num_classes))])).to(self.device) 
 
-        self.slices_for_classes = [np.arange(self.num_classes[0])] # [array([0, 1])]
-        offsets = np.cumsum(self.num_classes) # array([ 2,  4,  6,  8, 10, 12, 14, 16, 18, 20])
+        self.slices_for_classes = [np.arange(self.num_classes[0])] 
+        offsets = np.cumsum(self.num_classes) 
         for i in range(1, len(offsets)):
-            self.slices_for_classes.append(np.arange(offsets[i - 1], offsets[i])) # [array([0, 1]), array([2, 3]), array([4, 5]), array([6, 7]), array([8, 9]), array([10, 11]), array([12, 13]), array([14, 15]), array([16, 17]), array([18, 19])]
-        self.offsets = torch.from_numpy(np.append([0], offsets)).to(self.device) # tensor([ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20], device='cuda:0')
+            self.slices_for_classes.append(np.arange(offsets[i - 1], offsets[i])) 
+        self.offsets = torch.from_numpy(np.append([0], offsets)).to(self.device) 
 
-        self._denoise_fn = denoise_fn # mlp 用于 denoise；MLPDiffusion(**model_params) 
-        self.gaussian_loss_type = raw_config['train_diffusion_params']['gaussian_loss_type'] # mse
-        self.gaussian_parametrization = raw_config['train_diffusion_params']['gaussian_parametrization'] # eps
-        self.multinomial_loss_type = raw_config['train_diffusion_params']['multinomial_loss_type'] # 'vb_stochastic'
-        self.num_timesteps = raw_config['train_diffusion_params']['n_timesteps'] # 加噪 step 100 / 1000
-        self.parametrization = raw_config['train_diffusion_params']['parametrization'] # x0 ???
-        self.scheduler = raw_config['train_diffusion_params']['scheduler'] # cosine
+        self._denoise_fn = denoise_fn
+        self.gaussian_loss_type = raw_config['train_diffusion_params']['gaussian_loss_type']
+        self.gaussian_parametrization = raw_config['train_diffusion_params']['gaussian_parametrization'] 
+        self.multinomial_loss_type = raw_config['train_diffusion_params']['multinomial_loss_type'] 
+        self.num_timesteps = raw_config['train_diffusion_params']['n_timesteps'] 
+        self.parametrization = raw_config['train_diffusion_params']['parametrization'] 
+        self.scheduler = raw_config['train_diffusion_params']['scheduler'] 
 
-        alphas = 1. - get_named_beta_schedule(self.scheduler, self.num_timesteps) # default: 1000 steps of alphas
-        alphas = torch.tensor(alphas.astype('float64')) # 转换类型
-        betas = 1. - alphas # betas == get_named_beta_schedule(scheduler, num_timesteps)
+        alphas = 1. - get_named_beta_schedule(self.scheduler, self.num_timesteps)
+        alphas = torch.tensor(alphas.astype('float64')) 
+        betas = 1. - alphas 
 
-        log_alpha = np.log(alphas) # alphas 取log
-        log_cumprod_alpha = np.cumsum(log_alpha) # 加和log，相当于连乘
+        log_alpha = np.log(alphas) 
+        log_cumprod_alpha = np.cumsum(log_alpha) 
 
-        log_1_min_alpha = log_1_min_a(log_alpha) # log(1 - alpha + epsilon)
-        log_1_min_cumprod_alpha = log_1_min_a(log_cumprod_alpha) # log(1 - cumprod_alpha + epsilon) / cumprod_alpha: # 相当于连乘alpha
+        log_1_min_alpha = log_1_min_a(log_alpha) 
+        log_1_min_cumprod_alpha = log_1_min_a(log_cumprod_alpha) 
 
-        alphas_cumprod = np.cumprod(alphas, axis=0) # 连乘alpha，取log后等同于log_cumprod_alpha (上述Line 110)
-        alphas_cumprod_prev = torch.tensor(np.append(1.0, alphas_cumprod[:-1])) # 第一个加个1， 去掉最后一个
-        alphas_cumprod_next = torch.tensor(np.append(alphas_cumprod[1:], 0.0)) # 去掉第一个，最后一个加个0
+        alphas_cumprod = np.cumprod(alphas, axis=0) 
+        alphas_cumprod_prev = torch.tensor(np.append(1.0, alphas_cumprod[:-1])) 
+        alphas_cumprod_next = torch.tensor(np.append(alphas_cumprod[1:], 0.0)) 
         sqrt_alphas_cumprod = np.sqrt(alphas_cumprod)
         sqrt_one_minus_alphas_cumprod = np.sqrt(1.0 - alphas_cumprod)
         sqrt_recip_alphas_cumprod = np.sqrt(1.0 / alphas_cumprod)
@@ -359,30 +357,6 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps))
 
 
-    # ------------------------------------------------------------------------
-    # ------------------------------------------------------------------------
-    # ------------------------------------------------------------------------
-
-
-
-    
-    # def read_t(self, csv_name, raw_config):
-    #     df_t = pd.read_csv(f"{raw_config['sample']['main']['best_model_dir']}/{csv_name}")
-    #     # numpy_array = df_t.iloc[:,0].to_numpy()
-    #     # tensor_from_df = torch.from_numpy(numpy_array)
-    #     # tensor_from_df = tensor_from_df.to(self.device)
-    #     # tensor_from_df = tensor_from_df.type(torch.int64)
-    #     # tensor_from_df = self.transfer_to_gputensor(df_t.iloc[:,0])
-    #     # return tensor_from_df
-    #     return df_t
-
-
-    # ------------------------------------------------------------------------
-    # ------------------------------------------------------------------------
-    # ------------------------------------------------------------------------
-
-
-
     # Gaussian part
     def gaussian_q_mean_variance(self, x_start, t):
         mean = (
@@ -394,10 +368,10 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         )
         return mean, variance, log_variance
     
-    def gaussian_q_sample(self, x_start, t, noise=None): # 调用于：Line 603
+    def gaussian_q_sample(self, x_start, t, noise=None): 
         if noise is None:
             noise = torch.randn_like(x_start)
-        assert noise.shape == x_start.shape # torch.Size([4096, 7]) / torch.Size([2304, 7])
+        assert noise.shape == x_start.shape 
         return (
             extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
             + extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
@@ -428,12 +402,10 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         if model_kwargs is None:
             model_kwargs = {}
 
-        B, C = x.shape[:2] # B：838； C：18
+        B, C = x.shape[:2]
         assert t.shape == (B,)
 
-        # model_variance = torch.cat([self.posterior_variance[1].unsqueeze(0).to(x.device), (1. - self.alphas)[1:]], dim=0)  # 拼接
-        model_variance = torch.cat([self.posterior_variance[1].unsqueeze(0).to(self.device), (1. - self.alphas)[1:]], dim=0)  # 拼接
-        # model_variance = self.posterior_variance.to(x.device)
+        model_variance = torch.cat([self.posterior_variance[1].unsqueeze(0).to(self.device), (1. - self.alphas)[1:]], dim=0)  
         model_log_variance = torch.log(model_variance)
 
         model_variance = extract(model_variance, t, x.shape)
@@ -549,17 +521,17 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         model_kwargs=None,
     ):
         out = self.gaussian_p_mean_variance(
-            model_out, # model_out_num
-            x, # z_norm：随机采样
-            t, # timestep; 全部是99之类
-            clip_denoised=clip_denoised, # False
-            denoised_fn=denoised_fn, # none ???
+            model_out,
+            x,
+            t,
+            clip_denoised=clip_denoised, 
+            denoised_fn=denoised_fn, 
             model_kwargs=model_kwargs,
-        ) # model_out_num, z_norm, t, 
+        )
         noise = torch.randn_like(x)
         nonzero_mask = (
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
-        )  # no noise when t == 0
+        ) 
 
         sample = out["mean"] + nonzero_mask * torch.exp(0.5 * out["log_variance"]) * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
@@ -699,9 +671,9 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         return log_sample
 
     def q_sample(self, log_x_start, t):
-        log_EV_qxt_x0 = self.q_pred(log_x_start, t) # log_x_start 是初始的特征， 在此基础上面加上噪音； t.size() = torch.Size([4096]), 每个数据 所选择的噪音的time_step
+        log_EV_qxt_x0 = self.q_pred(log_x_start, t) 
 
-        log_sample = self.log_sample_categorical(log_EV_qxt_x0) # index_to_log_onehot 的 classifiaction结果 ？？？
+        log_sample = self.log_sample_categorical(log_EV_qxt_x0) 
 
         return log_sample
 
@@ -770,9 +742,9 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
             return t, pt
 
         elif method == 'uniform':
-            t = torch.randint(0, self.num_timesteps, (b,), device=self.device).long() # 0 和 self.num_timesteps：这两个参数定义了生成随机整数的范围，从0（包含）到self.num_timesteps（不包含）。这意味着生成的每个随机整数都将在这个范围内。(b,)：这是一个元组，指定了输出张量的形状。这里b是一个变量，表示生成张量的第一个维度的大小。例如，如果b=10，那么输出将是一个包含10个元素的一维张量。tensor([ 28, 426, 232, 805, 453, 888, 501,  57, 463, 145, 336, 122, 539,  14, 888, 534, 505, 198, 367, 905, 446, 810, 198, 685, 281, 840, 163, 732, 197, 895, 285, 650], device='cuda:0')
+            t = torch.randint(0, self.num_timesteps, (b,), device=self.device).long() 
 
-            pt = torch.ones_like(t).float() / self.num_timesteps  # pt = tensor([0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010, 0.0010], device='cuda:0') 综合来看，pt = torch.ones_like(t).float() / self.num_timesteps这行代码的作用是创建一个与t形状相同，所有元素都是1的浮点数张量，然后将这个张量中的每个元素都除以self.num_timesteps。这样的操作通常用于生成一个均匀分布的概率分布张量，其中每个元素的值都在0到1之间（不包括1），这在某些类型的神经网络中可能用于归一化时间步或者作为某种权重分布。例如，如果self.num_timesteps是10，那么pt中的每个元素都会被设置为0.1，这样pt就代表了从0到1均匀分布的概率分布。
+            pt = torch.ones_like(t).float() / self.num_timesteps  
             return t, pt
         else:
             raise ValueError
@@ -822,30 +794,30 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
     def mixed_loss(self, x, out_dict, raw_config, mid_out=''):
 
         b = x.shape[0] # batch_size
-        t, pt = self.sample_time(b, self.device, 'uniform') # 为这个batch随机采样：num_timestpe = 1000 以内step随机数；每一个data不一样的t
+        t, pt = self.sample_time(b, self.device, 'uniform') 
 
         x_num = x[:, :self.num_numerical_features]
         x_cat = x[:, self.num_numerical_features:]
 
         if x_num.shape[1] > 0:
-            noise = torch.randn_like(x_num) # 生成一个新的张量，其形状与 x_num 相同，且每个元素都是从标准正态分布中随机抽取的值。这个操作在深度学习中常用于初始化网络权重或生成具有特定分布的随机噪声。
-            x_num_t = self.gaussian_q_sample(x_num, t, noise=noise) # 对 numerical features 加噪
+            noise = torch.randn_like(x_num) 
+            x_num_t = self.gaussian_q_sample(x_num, t, noise=noise)
         if x_cat.shape[1] > 0:
-            log_x_cat = index_to_log_onehot(x_cat.long(), self.num_classes) # 把category特征转换成one-hot，再转换成 取log
-            log_x_cat_t = self.q_sample(log_x_start=log_x_cat, t=t) # 对 categorical features 加噪
-        x_in = torch.cat([x_num_t, log_x_cat_t], dim=1) # 合并加完噪音的 numerical 和categorical features
-        model_out = self._denoise_fn.forward( # de_noise model 的 forward proporgation # 相当于本代码文件的#1153（sample的时候）
-            x_in, # 加完噪音的 numerical 和categorical features
-            t, # timesteps
-            **out_dict # y (label)
+            log_x_cat = index_to_log_onehot(x_cat.long(), self.num_classes) 
+            log_x_cat_t = self.q_sample(log_x_start=log_x_cat, t=t) 
+        x_in = torch.cat([x_num_t, log_x_cat_t], dim=1) 
+        model_out = self._denoise_fn.forward( 
+            x_in,
+            t,
+            **out_dict
         )
         model_out_num = model_out[:, :self.num_numerical_features]
         model_out_cat = model_out[:, self.num_numerical_features:]
 
         if x_cat.shape[1] > 0:
-            loss_multi_all = self._multinomial_loss(model_out_cat, log_x_cat, log_x_cat_t, t, pt, out_dict) / len(self.num_classes) # categorical 的 _multinomial_loss ；公式（3）的后半; torch.Size([256]) 已经按照 instance做了平均
+            loss_multi_all = self._multinomial_loss(model_out_cat, log_x_cat, log_x_cat_t, t, pt, out_dict) / len(self.num_classes) 
         if x_num.shape[1] > 0:
-            loss_gauss_all = self._gaussian_loss(model_out_num, x_num, x_num_t, t, noise) # numerical 的 _gaussian_loss；公式（3）的前半；torch.Size([256]) 已经按照 instance做了平均
+            loss_gauss_all = self._gaussian_loss(model_out_num, x_num, x_num_t, t, noise) 
 
         balance_loss_method = raw_config['train']['main']['balance_loss_method']
         if balance_loss_method == 'inverse_frequency':
@@ -867,7 +839,7 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         else:
             loss_multi, loss_gauss = loss_multi_all.mean(), loss_gauss_all.mean()
 
-        return loss_multi, loss_gauss, x_in, t, model_out # 分别返回 categorical 和 numerical 的 loss
+        return loss_multi, loss_gauss, x_in, t, model_out 
     
     @torch.no_grad()
     def mixed_elbo(self, x0, out_dict):
@@ -1158,11 +1130,11 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         return sample, out_dict
 
     @torch.no_grad()
-    def sample(self, num_samples, y_dist): # 在训练好的diffusion上取样
+    def sample(self, num_samples, y_dist): 
         b = num_samples
         # device = self.log_alpha.device
         device = self.device
-        z_norm = torch.randn((b, self.num_numerical_features), device=self.device) # 从正态分布随机采样
+        z_norm = torch.randn((b, self.num_numerical_features), device=self.device) 
         has_cat = self.num_classes[0] != 0
         log_z = torch.zeros((b, 0), device=self.device).float()
         if has_cat:
@@ -1174,7 +1146,7 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
             replacement=True
         )
         out_dict = {'y': y.long().to(self.device)}
-        for i in reversed(range(0, self.num_timesteps)): # self.num_timesteps = 100
+        for i in reversed(range(0, self.num_timesteps)): 
             print(f'Sample timestep {i:4d}', end='\r')
             t = torch.full((b,), i, device=self.device, dtype=torch.long)
             model_out = self._denoise_fn(
@@ -1222,35 +1194,33 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
     
 
     @torch.no_grad()
-    def sample2(self, D, n_samples, y_dist): # 在训练好的diffusion上取样
+    def sample2(self, D, n_samples, y_dist): 
         b = int(n_samples.item())
         device = self.device
-        # 在这里可以主动采样
-        z_norm = torch.randn((b, self.num_numerical_features), device=self.device) # 从正态分布随机采样; z_norm.size()是 torch.Size([46826, 14])
+        z_norm = torch.randn((b, self.num_numerical_features), device=self.device) 
         uniform_logits = torch.zeros((b, len(self.num_classes_expanded)), device=self.device)
-        log_z = self.log_sample_categorical(uniform_logits) # 类别采样; log_z.size()是 torch.Size([46826, 20])
+        log_z = self.log_sample_categorical(uniform_logits) 
         y = torch.multinomial(
             # y_dist,
             y_dist.float(),
             num_samples=b,
             replacement=True
-        ) # 采样 label; y.size()是torch.Size([46826])
-        out_dict = {'y': y.long().to(self.device )} # label 转换成 dict 类型
+        ) 
+        out_dict = {'y': y.long().to(self.device )} 
         print('-'*19)
-        for i in reversed(range(0, self.num_timesteps)): # self.num_timesteps = 100
+        for i in reversed(range(0, self.num_timesteps)):
             if i % 200 == 0:
                 print(f'Sample timestep {i:4d}\n', end='\r')
-            t = torch.full((b,), i, device=self.device , dtype=torch.long) # t.size() 是 torch.Size([838])
+            t = torch.full((b,), i, device=self.device , dtype=torch.long) 
             # ------------
-            model_out = self._denoise_fn( # 相当于本代码文件#673
-                torch.cat([z_norm, log_z], dim=1).float(), # feature 的采样； torch.Size([838, 26])
-                t, # 838个timesteps
-                **out_dict  # label 的 dict 类型
-            ) # model_out.size() 最后是 torch.Size([838, 26])
+            model_out = self._denoise_fn( 
+                torch.cat([z_norm, log_z], dim=1).float(), 
+                t, 
+                **out_dict  
+            ) 
             # ------------
             model_out_num = model_out[:, :self.num_numerical_features]
             model_out_cat = model_out[:, self.num_numerical_features:]
-            # z_norm = self.gaussian_p_sample(model_out_num, z_norm, t, clip_denoised=False)['sample'] # 
             z_norm = self.gaussian_p_sample(model_out_num, z_norm, t, clip_denoised=True)['sample'] # 
             
             log_z = self.p_sample(model_out_cat, log_z, t, out_dict)
@@ -1261,7 +1231,7 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         generated_samples = torch.cat([z_norm, z_cat], dim=1).cpu()
         return generated_samples, out_dict
     
-    # def sample_all_mine(self, D, num_samples, batch_size, y_dist, sample_mine=True, balance_mine=True):
+
     def random_sample(self, D, best_model_path, raw_config):
 
         _, y_dist = torch.unique(torch.from_numpy(D.y['train']), return_counts=True)
@@ -1274,13 +1244,10 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         assert(n_generate_times>=n_sample_times)
 
         n_samples = np.ceil((y_dist.max() ** 2) / y_dist.min() + y_dist.max()) * n_generate_times + 100
-        print('n_samples:',int(n_samples.item()))
 
         generated_samples, out_dict = self.sample2(D, n_samples, y_dist)
         generated_samples_0, selected_out_dict_y_0, indices_0 = random_select(generated_samples, out_dict, 0, y_dist.sum().item()*n_sample_times)
-        # assert(pd.Series(indices_0).duplicated().sum() == 0)
         generated_samples_1, selected_out_dict_y_1,indices_1 = random_select(generated_samples, out_dict, 1, y_dist.sum().item()*n_sample_times)
-        # assert(pd.Series(indices_1).duplicated().sum() == 0)
 
         x_gen = torch.cat((generated_samples_0, generated_samples_1), dim=0)
         y_gen = torch.cat((selected_out_dict_y_0, selected_out_dict_y_1), dim=0)
@@ -1289,83 +1256,34 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
         X_gen, y_gen = x_gen.cpu().numpy(), y_gen.cpu().numpy()
 
         n_numerical_features = raw_config['data']['x']['n_numerical_features']
-        # n_categorical_features = raw_config['data']['x']['n_categorical_features']
         X_num_generated = D.num_transformer.inverse_transform(X_gen[:, :n_numerical_features])
         X_cat_generated = D.cat_transformer.inverse_transform(X_gen[:, n_numerical_features:])
         
         numerical_feature_columns = raw_config['data']['x']['numerical_feature_columns']
         categorical_feature_columns = raw_config['data']['x']['categorical_feature_columns']
         
-        # ------------
-        # ------------
-        # ------------
 
         epoch = int(best_model_path.split('/')[-2].split('_')[-1])
-        # best_model_path = raw_config['sample']['main']['best_model_path']
         sample_dir = f"{raw_config['sample']['main']['sample_dir']}"
         epoch_dir = f'{sample_dir}/epochs_%06d_random_generated' % epoch
         os.makedirs(epoch_dir, exist_ok=True)
 
-        # ------------
 
-        X_num_train_boxcox = pd.read_csv('data/X_num_train.csv',index_col=0)
+        X_num_train_boxcox = pd.read_csv(f"{raw_config['data']['real_data_dir']}/X_num_train.csv",index_col=0)
         X_num_generated_boxcox = pd.DataFrame(X_num_generated,columns=numerical_feature_columns)
-
-        X_num_train_boxcox.describe().to_csv(f'{epoch_dir}/desc_X_num_train_boxcox.csv',index=True)
-        X_num_generated_boxcox.describe().to_csv(f'{epoch_dir}/desc_X_num_generated_boxcox.csv',index=True)
-
-        # print(X_num_train_boxcox.describe())
-        # print(X_num_generated_boxcox.describe())
-
-        X_num_train_boxcox.to_csv(f'{epoch_dir}/X_num_train_boxcox.csv',index=False)
         X_num_generated_boxcox.to_csv(f'{epoch_dir}/X_num_generated_boxcox.csv',index=False)
         
-        # ------------
+        lambdas_scalers = joblib.load(f"{raw_config['data']['lambdas_scalers_path']}")
+        lambdas = lambdas_scalers['lambdas']
+        scalers = lambdas_scalers['scalers']
 
-        X_num_train = pd.read_csv('data/origin/不做boxcox/X_num_train.csv',index_col=0)
-        X_num_val = pd.read_csv('data/origin/不做boxcox/X_num_val.csv',index_col=0)
-        X_num_test = pd.read_csv('data/origin/不做boxcox/X_num_test.csv',index_col=0)
-        X_num = pd.concat([X_num_train,X_num_val,X_num_test],axis=0)
-
-        X_num_cox, lambdas, scalers = cox_box_scale_transform(X_num)
         X_num_train_reverse = inverse_cox_box_scale_transform(X_num_train_boxcox, lambdas, scalers)
         X_num_generated_reverse = inverse_cox_box_scale_transform(X_num_generated_boxcox, lambdas, scalers)
 
-        X_num_train.describe().to_csv(f'{epoch_dir}/desc_X_num_train.csv',index=True)
-        X_num_train_reverse.describe().to_csv(f'{epoch_dir}/desc_X_num_train_reverse.csv',index=True)
-        X_num_generated_reverse.describe().to_csv(f'{epoch_dir}/desc_X_num_generated_reverse.csv',index=True)
-        
-        # print(df_num_train.describe())
-        # print(X_num_train_reverse.describe())
-        # print(X_num_generated_reverse.describe())
-
-        X_num_train.to_csv(f'{epoch_dir}/X_num_train.csv',index=False)
+        X_num_train_boxcox.to_csv(f'{epoch_dir}/X_num_train.csv',index=False)
         X_num_train_reverse.to_csv(f'{epoch_dir}/X_num_train_reverse.csv',index=False)
         X_num_generated_reverse.to_csv(f'{epoch_dir}/X_num_generated_reverse.csv',index=False)
 
-        # ------------
-        plt.figure(figsize=(10, 6))  # 设置图像大小
-        X_num_train.hist(bins=100)
-        plt.title('Histogram of Real (only num)')
-        plt.xlabel('Value')
-        plt.ylabel('Frequency')
-        plt.savefig(f'{epoch_dir}/hist_num.png')  # 保存为 PNG 文件
-        # plt.savefig('histogram.jpg', dpi=300)  # 保存为 JPG 文件，并设置分辨率
-        plt.close()
-        plt.close()
-        # ------------
-        plt.figure(figsize=(10, 6))  # 设置图像大小
-        X_num_generated_reverse.hist(bins=100)
-        plt.title('Histogram of Generated (only num)')
-        plt.xlabel('Value')
-        plt.ylabel('Frequency')
-        plt.savefig(f'{epoch_dir}/hist_num_generated_reverse.png')  # 保存为 PNG 文件
-        # plt.savefig('histogram.jpg', dpi=300)  # 保存为 JPG 文件，并设置分辨率
-        plt.close()
-        plt.close()
-        # ------------
-
-        # ------------
         label_column = raw_config['data']['y']['label_column']
         X_generated = pd.concat([
             pd.DataFrame(X_num_generated, columns = numerical_feature_columns),
@@ -1375,129 +1293,18 @@ class GaussianMultinomialDiffusion(torch.nn.Module): # diffusaion 过程
 
         X_generated.to_csv(f'{epoch_dir}/X_.csv',index=False)
         y_generated.to_csv(f'{epoch_dir}/y_.csv',index=False)
-        # ------------
 
 
 
-    
-    def forward_sample(self, D, raw_config):
 
-        best_model_dir = f"{raw_config['sample']['main']['best_model_dir']}"
-        device = raw_config['main']['device']
 
-        # ------------
-        # read 
-        df_train_in, df_test_in = read_forworded(D, raw_config, 'in')
-        df_train_t, df_test_t = read_forworded(D, raw_config, 't')
-        train_t, test_t = df_train_t.squeeze(1), df_test_t.squeeze(1)
-        df_train_out, df_test_out = read_forworded(D, raw_config, 'out')
 
-        # ------------
-        y_train = np.concatenate([D.y['train'], D.y['val']], axis=0)
-        y_train = pd.Series(y_train, index=D.split_index['train'] + D.split_index['val'])
-        y_train = y_train.sort_index()
-        y_test = pd.Series(D.y['test'], index=D.split_index['test']).sort_index()
 
-        # ------------
-        # compute similarity
-        d_in_similarity_path = f"{best_model_dir}/d_in_similarity.csv"
-        raw_config['sample']['main']['d_in_similarity'] = d_in_similarity_path
-        # update_raw_config(raw_config)
-        if ast.literal_eval(raw_config['main']['raw_config_update']):
-            raw_config_converted = convert_numpy_to_native(raw_config)
-            lib.dump_config(raw_config_converted, f"{raw_config['main']['raw_config_path']}") 
-            lib.dump_config(raw_config_converted, f"{raw_config['train']['main']['trained_model_dir']}/config.toml")
-            lib.dump_config(convert_numpy_to_native(raw_config), f"{raw_config['sample']['main']['sample_dir']}/config.toml") 
 
-        if os.path.isfile(d_in_similarity_path):
-            df_similarity = pd.read_csv(d_in_similarity_path,index_col=0).astype('float64')
-            print('read', d_in_similarity_path)
-        else:
-            df_similarity = cosine_similarity(df_train_in, df_test_in) # compute consine similarity
-            df_similarity.to_csv(d_in_similarity_path, index=True)
 
-        # check similarity distribution
-        print(df_similarity.max().min())
-        # df_similarity.max().hist(bins=300)
 
-        similarity_idxmax = df_similarity.apply(pd.to_numeric, errors='coerce').idxmax()
-        df_train_in_idxmax = df_train_in.loc[similarity_idxmax,:].copy()
-        train_t_idxmax = train_t.loc[similarity_idxmax].copy()
-        y_train_idxmax = y_train.loc[similarity_idxmax].copy()
-    
-        # # check label differences
-        # from sklearn.metrics import confusion_matrix as cm
-        # print(cm(y_test, y_train_idxmax))
 
-        all_sets = [
-            [df_train_in, train_t, y_train],
-            [df_train_in_idxmax, y_train_idxmax, y_train_idxmax],
-        ]
-        all_set_names = [
-            'in',
-            'idxmax_in',
-        ]
 
-        for i_, ((df_, train_t_, y_), set_name_) in enumerate(zip(all_sets, all_set_names)):
-            # ------------
-            train_in_idxmax_gpu = transfer_to_gputensor(df_, device).float()
-            train_t_gpu = transfer_to_gputensor(train_t_, device)
-            out_dict_y_gpu = {}
-            out_dict_y_gpu['y'] = transfer_to_gputensor(y_, device)
 
-            train_out_idxmax_gpu = self._denoise_fn.forward( # de_noise model 的 forward proporgation # 相当于本代码文件的#1153（sample的时候）
-                train_in_idxmax_gpu, # 加完噪音的 numerical 和categorical features
-                train_t_gpu, # timesteps ???
-                **out_dict_y_gpu # y (label) # ???
-            )
-            # ------------
-            # check
-            # model_out_train = pd.read_csv('exp/trial_00/trained_model/model_out_train.csv')
-            # model_out_train.loc[train_similarity_idxmax,:]
-            # ------------
-            z_norm = train_in_idxmax_gpu[:, :self.num_numerical_features]
-            log_z = train_in_idxmax_gpu[:, self.num_numerical_features:]
-            model_out_num = train_out_idxmax_gpu[:, :self.num_numerical_features]
-            model_out_cat = train_out_idxmax_gpu[:, self.num_numerical_features:]
-            z_norm = self.gaussian_p_sample(model_out_num, z_norm, train_t_gpu, clip_denoised=False)['sample'] # 
-            # if has_cat:
-            #     log_z = self.p_sample(model_out_cat, log_z, t, out_dict)
-            log_z = self.p_sample(model_out_cat, log_z, train_t_gpu, out_dict_y_gpu)
-            z_ohe = torch.exp(log_z).round()
-            z_cat = log_z
-            z_cat = ohe_to_categories(z_ohe, self.num_classes)
-            generated_samples = torch.cat([z_norm, z_cat], dim=1).cpu()
-            X_gen, y_gen = generated_samples.cpu().detach().numpy(), out_dict_y_gpu['y'].cpu().detach().numpy()
-            n_numerical_features = raw_config['data']['x']['n_numerical_features']
-            # n_categorical_features = raw_config['data']['x']['n_categorical_features']
-            X_num_generated = D.num_transformer.inverse_transform(X_gen[:, :n_numerical_features])
-            X_cat_generated = D.cat_transformer.inverse_transform(X_gen[:, n_numerical_features:])
-            # X_num_generated2 = loaded_dataset.num_transform.inverse_transform(X_gen[:, :n_numerical_features])
-            # X_cat_generated2 = loaded_dataset.cat_transform.inverse_transform(X_gen[:, n_numerical_features:])
-            numerical_feature_columns = raw_config['data']['x']['numerical_feature_columns']
-            categorical_feature_columns = raw_config['data']['x']['categorical_feature_columns']
-            X_generated = pd.concat([
-                pd.DataFrame(
-                    X_num_generated,
-                    columns = numerical_feature_columns,
-                ),
-                pd.DataFrame(
-                    X_cat_generated,
-                    columns = categorical_feature_columns,
-                )
-            ],axis=1)
-            y_generated = pd.DataFrame(y_gen, columns=['CVDs'])
-            # # print('-'*19)
-            # # print('X_num_generated.duplicated()', pd.DataFrame(X_num_generated).duplicated().sum())
-            # # print('X_cat_generated.duplicated()', pd.DataFrame(X_cat_generated).duplicated().sum())
-            # # print('X_generated.duplicated()', X_generated.duplicated().sum())
-            # print('-'*19)
-            # print(X_generated)
 
-            sample_dir = raw_config['sample']['main']['sample_dir']
-            epoch_dir = f'{sample_dir}/forward_generated_{set_name_}'
-            os.makedirs(epoch_dir, exist_ok=True)
-            X_generated.to_csv(f'{epoch_dir}/X_.csv',index=False)
-            y_generated.to_csv(f'{epoch_dir}/y_.csv',index=False)
 
-        # return generated_samples.detach(), out_dict_smote['y'].detach()

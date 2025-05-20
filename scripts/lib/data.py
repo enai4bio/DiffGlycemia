@@ -151,11 +151,7 @@ class Dataset:
         X_train_fake_shape, y_fake_sum,
         X_train_val_real_shape, y_real_sum,
         X_test_real_shape, y_test_sum,
-        # print('synthetic train:',np.shape(X_train_fake),'   1s:',np.sum(y_fake))
-        # print('real train_val:',np.shape(X_train_val_real),'   1s:',np.sum(y_real))
-        # print('real test:',np.shape(X_test_real),'   1s:',np.sum(y_test))
         df_metrics_both,
-        # cm_fake
     ) -> Dict[str, Any]:
         
         report_metrics = {k1: {} for k1 in ['train','val','test']}
@@ -230,39 +226,9 @@ class Dataset:
 
         return report_metrics
     
-
-
-# def change_val(dataset: Dataset, val_size: float = 0.2): # 合并 train 和 valid； 然后 重新分配 train 和 valid
-#     # should be done before transformations
-
-#     y = np.concatenate([dataset.y['train'], dataset.y['val']], axis=0)
-    
-#     val_size = len(dataset.y['val']) / len(dataset.y['train']) # mine
-
-#     ixs = np.arange(y.shape[0])
-#     if dataset.is_regression:
-#         train_ixs, val_ixs = train_test_split(ixs, test_size=val_size, random_state=777)
-#     else:
-#             train_ixs, val_ixs = train_test_split(ixs, test_size=val_size, random_state=777, stratify=y)
-
-#     dataset.y['train'] = y[train_ixs] # 数量发生变化：419-> 416
-#     dataset.y['val'] = y[val_ixs]
-
-#     if dataset.X_num is not None:
-#         X_num = np.concatenate([dataset.X_num['train'], dataset.X_num['val']], axis=0)
-#         dataset.X_num['train'] = X_num[train_ixs]
-#         dataset.X_num['val'] = X_num[val_ixs]
-
-#     if dataset.X_cat is not None:
-#         X_cat = np.concatenate([dataset.X_cat['train'], dataset.X_cat['val']], axis=0)
-#         dataset.X_cat['train'] = X_cat[train_ixs]
-#         dataset.X_cat['val'] = X_cat[val_ixs]
-
-#     return dataset
-
-def num_process_nans(dataset: Dataset, policy: Optional[NumNanPolicy]) -> Dataset: # X_num中处理NAs
+def num_process_nans(dataset: Dataset, policy: Optional[NumNanPolicy]) -> Dataset: 
     assert dataset.X_num is not None
-    nan_masks = {k: np.isnan(v) for k, v in dataset.X_num.items()} # 查看train val test 中的NAs
+    nan_masks = {k: np.isnan(v) for k, v in dataset.X_num.items()} 
     if not any(x.any() for x in nan_masks.values()):  # type: ignore[code]
         assert policy is None
         return dataset
@@ -293,43 +259,29 @@ def num_process_nans(dataset: Dataset, policy: Optional[NumNanPolicy]) -> Datase
     return dataset
 
 
-# Inspired by: https://github.com/yandex-research/rtdl/blob/a4c93a32b334ef55d2a0559a4407c8306ffeeaee/lib/data.py#L20
 def normalize(
     X: ArrayDict, normalization: Normalization, seed: Optional[int], return_normalizer : bool = False
 ) -> ArrayDict:
-    print('-'*19)
     X_train = X['train']
     if normalization == 'standard':
-        print('num_normalize: sklearn.preprocessing.StandardScaler(); seed:', seed)
         normalizer = sklearn.preprocessing.StandardScaler()
     elif normalization == 'minmax':
-        print('num_normalize: sklearn.preprocessing.MinMaxScaler(); seed:', seed)
         normalizer = sklearn.preprocessing.MinMaxScaler()
     elif normalization == 'quantile':
         n = 1e99
         normalizer = sklearn.preprocessing.QuantileTransformer(
             output_distribution='normal',
-            # n_quantiles=max(min(X['train'].shape[0] // 30, 1000), 10),
             n_quantiles=n,
             subsample=n,
             random_state=seed,
-        ) # 这行代码定义了一个用于特征标准化的 QuantileTransformer，它将输入数据根据其分位数进行变换，并输出一个遵循指定分布的数据。这种变换常用于处理数据的偏态分布，使其接近指定的目标分布（比如正态分布），从而提高模型的效果。
-        print('num_normalize: sklearn.preprocessing.QuantileTransformer(); seed:', seed)
-        # noise = 1e-3
-        # if noise > 0:
-        #     assert seed is not None
-        #     stds = np.std(X_train, axis=0, keepdims=True)
-        #     noise_std = noise / np.maximum(stds, noise)  # type: ignore[code]
-        #     X_train = X_train + noise_std * np.random.default_rng(seed).standard_normal(
-        #         X_train.shape
-        #     )
+        )
     else:
         util.raise_unknown('normalization', normalization)
 
     normalizer.fit(X_train)
 
     if return_normalizer:
-        return {k: normalizer.transform(v) for k, v in X.items()}, normalizer # normalize train val test
+        return {k: normalizer.transform(v) for k, v in X.items()}, normalizer 
     
     return {k: normalizer.transform(v) for k, v in X.items()}
 
@@ -341,7 +293,7 @@ def cat_process_nans(X: ArrayDict, policy: Optional[CatNanPolicy]) -> ArrayDict:
         if policy is None:
             X_new = X
         elif policy == 'most_frequent':
-            imputer = SimpleImputer(missing_values=CAT_MISSING_VALUE, strategy=policy)  # type: ignore[code]
+            imputer = SimpleImputer(missing_values=CAT_MISSING_VALUE, strategy=policy) 
             imputer.fit(X['train'])
             X_new = {k: cast(np.ndarray, imputer.transform(v)) for k, v in X.items()}
         else:
@@ -383,18 +335,18 @@ def cat_encode(
 
     if encoding is None:
         unknown_value = np.iinfo('int64').max - 3
-        oe = sklearn.preprocessing.OrdinalEncoder( # 用数字分别表示 category
+        oe = sklearn.preprocessing.OrdinalEncoder( 
             handle_unknown='use_encoded_value',  # type: ignore[code]
             unknown_value=unknown_value,  # type: ignore[code]
             dtype='int64',  # type: ignore[code]
         ).fit(X['train'])
         encoder = make_pipeline(oe)
         encoder.fit(X['train'])
-        X = {k: encoder.transform(v) for k, v in X.items()} # 实行数据处理
+        X = {k: encoder.transform(v) for k, v in X.items()} 
         max_values = X['train'].max(axis=0)
         for part in X.keys():
             if part == 'train': continue
-            for column_idx in range(X[part].shape[1]): # 对在val和test中出现的 在train中没有的 category 处理赋值
+            for column_idx in range(X[part].shape[1]): 
                 X[part][X[part][:, column_idx] == unknown_value, column_idx] = (
                     max_values[column_idx] + 1
                 )
@@ -465,17 +417,13 @@ def transform_dataset(
     cache_dir: Optional[Path],
     return_transforms: bool = False
 ) -> Dataset:
-    # WARNING: the order of transformations matters. Moreover, the current
-    # implementation is not ideal in that sense.
-
-    X_num_transformed, num_transformer = normalize( # 同文件 Line # 300
+    X_num_transformed, num_transformer = normalize(
         dataset.X_num,
         transformations.normalization,
         transformations.seed,
         return_normalizer=True
     )
     
-    print('cat_encoding:',transformations.cat_encoding,'; seed:',transformations.seed)
     X_cat_transformed, is_num, cat_transformer = cat_encode( # encoding category data
         dataset.X_cat,
         transformations.cat_encoding,
@@ -484,103 +432,17 @@ def transform_dataset(
         return_encoder=True
     )
 
-    # y, y_info = build_target(dataset.y, transformations.y_policy, dataset.task_type) # 等于没做
     y = dataset.y
     y_info = {'policy': 'default'}
 
-    # X_num_train2 = dataset.num_transform.inverse_transform(X_num_transformed['train'])
-    # assert(np.sum(dataset.X_num['train']!=X_num_train2)==0)
-    # X_cat_train2 = cat_transformer.inverse_transform(X_cat_transformed['train'])
-    # assert(np.sum(dataset.X_cat['train']!=X_cat_train2)==0)
-
-    dataset = replace(dataset, X_num=X_num_transformed, X_cat=X_cat_transformed, y=y, y_info=y_info) # 放入 dataset
-    dataset.num_transformer = num_transformer # 放入 dataset，将来可逆
-    dataset.cat_transformer = cat_transformer # 放入 dataset，将来可逆
-    dataset.split_index = split_index # 放入 dataset，将来可逆
+    dataset = replace(dataset, X_num=X_num_transformed, X_cat=X_cat_transformed, y=y, y_info=y_info)
+    dataset.num_transformer = num_transformer
+    dataset.cat_transformer = cat_transformer
+    dataset.split_index = split_index
 
     return dataset
 
 
-# def transform_dataset(
-#     dataset: Dataset, # D
-#     transformations: Transformations, # T
-#     cache_dir: Optional[Path],
-#     return_transforms: bool = False
-# ) -> Dataset:
-#     # WARNING: the order of transformations matters. Moreover, the current
-#     # implementation is not ideal in that sense.
-#     if cache_dir is not None:
-#         transformations_md5 = hashlib.md5(
-#             str(transformations).encode('utf-8')
-#         ).hexdigest()
-#         transformations_str = '__'.join(map(str, astuple(transformations)))
-#         cache_path = (
-#             cache_dir / f'cache__{transformations_str}__{transformations_md5}.pickle'
-#         )
-#         if cache_path.exists():
-#             cache_transformations, value = util.load_pickle(cache_path)
-#             if transformations == cache_transformations:
-#                 print(
-#                     f"Using cached features: {cache_dir.name + '/' + cache_path.name}"
-#                 )
-#                 return value
-#             else:
-#                 raise RuntimeError(f'Hash collision for {cache_path}')
-#     else:
-#         cache_path = None
-
-#     if dataset.X_num is not None:
-#         dataset = num_process_nans(dataset, transformations.num_nan_policy) # 处理 X_num 中的 NAs
-
-#     num_transform = None
-#     cat_transform = None
-#     X_num = dataset.X_num
-
-#     if X_num is not None and transformations.normalization is not None: # X_num 归一化
-#         print('normalize:',transformations.normalization)
-#         X_num, num_transform = normalize(
-#             X_num,
-#             transformations.normalization,
-#             transformations.seed,
-#             return_normalizer=True
-#         )
-#         # num_transform = num_transform # 保留归一化器
-    
-#     if dataset.X_cat is None:
-#         assert transformations.cat_nan_policy is None
-#         assert transformations.cat_min_frequency is None
-#         # assert transformations.cat_encoding is None
-#         X_cat = None
-#     else: # 处理 X_cat 中的 NAs: most_frequent
-#         X_cat = cat_process_nans(dataset.X_cat, transformations.cat_nan_policy) 
-#         if transformations.cat_min_frequency is not None:
-#             X_cat = cat_drop_rare(X_cat, transformations.cat_min_frequency)
-#         X_cat, is_num, cat_transform = cat_encode( # encoding category data
-#             X_cat,
-#             transformations.cat_encoding,
-#             dataset.y['train'],
-#             transformations.seed,
-#             return_encoder=True
-#         )
-#         if is_num: 
-#             X_num = (
-#                 X_cat
-#                 if X_num is None
-#                 else {x: np.hstack([X_num[x], X_cat[x]]) for x in X_num}
-#             )
-#             X_cat = None
-
-#     y, y_info = build_target(dataset.y, transformations.y_policy, dataset.task_type) # 等于没做
-
-#     dataset = replace(dataset, X_num=X_num, X_cat=X_cat, y=y, y_info=y_info) # 放入 dataset
-#     dataset.num_transform = num_transform # 放入 dataset，将来可逆
-#     dataset.cat_transform = cat_transform # 放入 dataset，将来可逆
- 
-#     if cache_path is not None:
-#         util.dump_pickle((transformations, dataset), cache_path)
-#     # if return_transforms:
-#     #     return dataset, num_transform, cat_transform
-#     return dataset
 
 def build_dataset(
     path: Union[str, Path],
@@ -609,10 +471,6 @@ def prepare_tensors(
     if not dataset.is_multiclass:
         Y = {k: v.float() for k, v in Y.items()}
     return X_num, X_cat, Y
-
-###############
-## DataLoader##-*``
-###############
 
 class TabDataset(torch.utils.data.Dataset):
     def __init__(
@@ -738,7 +596,6 @@ def prepare_fast_dataloader(
     if D.X_cat is not None:
         if D.X_num is not None:
             X = torch.from_numpy(np.concatenate([D.X_num[split], D.X_cat[split]], axis=1)).float()
-            # X = torch.from_numpy(np.concatenate([D.X_num[split], D.X_cat[split]], axis=1)).float().double()
         else:
             X = torch.from_numpy(D.X_cat[split]).float()
     else:
@@ -815,14 +672,6 @@ def read_pure_data(path, n_eval, split='train',verbose=False):
         X_cat = pd.read_csv(f'{path}/X_cat_{split}.csv',index_col=0)
         y = pd.read_csv(f'{path}/y_{split}.csv',index_col=0)
         split_index = y.index.tolist()
-        print('-'*9,f'loaded {split}_set','-'*9)
-        print(X_num.shape,X_cat.shape,y.shape)
-        if verbose:
-            pd.set_option('display.max_columns', 6)
-            pd.set_option('display.min_rows', 6)
-            print(X_num)
-            print(X_cat)
-            print(y)
         X_num = np.array(X_num)
         X_cat = np.array(X_cat)
         y = np.array(y)
@@ -856,9 +705,6 @@ def read_changed_val(path, val_size=0.2):
         X_cat_val = X_cat[val_ixs]
     
     return X_num_train, X_cat_train, y_train, X_num_val, X_cat_val, y_val
-
-
-# ------------------------------------------------------------------------
 
 
 def load_dataset_info(dataset_dir_name: str) -> Dict[str, Any]:

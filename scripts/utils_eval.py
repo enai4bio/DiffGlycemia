@@ -1,65 +1,38 @@
 import argparse
 
-# import subprocess
-# import optuna
-# import time
-# import tqdm
-
 import os
 from copy import deepcopy
 from glob import glob
-# from pathlib import Path
-# import pickle
 import shutil
 
 import lib
 from utils_train import *
 import ast
 
-# from datetime import datetime
 
 import numpy as np
 import pandas as pd
 pd.set_option('display.min_rows', 10)
 pd.set_option('display.max_columns', 20)
 
-# import seaborn as sns
 import matplotlib.pyplot as plt
 
 import math
 import zero
 import torch
 
-# ------------------------------------------------------------------------
-# imblearn
-
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.over_sampling import SMOTE
 from imblearn.over_sampling import SVMSMOTE
 
-# ------------------------------------------------------------------------
-# sklearn
-
 from sklearn.utils import shuffle
-
-# from sklearn.preprocessing import LabelEncoder
-# from sklearn.preprocessing import StandardScaler
-# from sklearn.decomposition import PCA
-
 from sklearn import metrics
 from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_score, recall_score
-from sklearn.metrics import f1_score
+from sklearn.metrics import recall_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import average_precision_score
 
 from sklearn.ensemble import RandomForestClassifier
-
-
-# ------------------------------------------------------------------------
-# ------------------------------------------------------------------------
-# ------------------------------------------------------------------------
 
 
 def create_real_dataset(split_set,real_data_dir,feature_columns,label_column):
@@ -145,15 +118,11 @@ def eval_rondom_forest(clf_rf, X_eval_rf_, y_eval_rf_, eval_type):
         columns=['Predicted 0', 'Predicted 1']
         )
     
-    accuracy_score_value = accuracy_score(np.array(y_eval_rf_), np.array(y_pred))
-    precision_score_value = precision_score(np.array(y_eval_rf_), np.array(y_pred))
     recall_score_value = recall_score(np.array(y_eval_rf_), np.array(y_pred))
-    micro_f1_score_value = f1_score(np.array(y_eval_rf_), np.array(y_pred), average="micro")
-    macro_f1_score_value = f1_score(np.array(y_eval_rf_), np.array(y_pred), average="macro")
     roc_auc_score_value = roc_auc_score(np.array(y_eval_rf_), np.array(y_pred_p_real))
     average_precision_score_value = average_precision_score(np.array(y_eval_rf_), np.array(y_pred_p_real))
 
-    return df_cm, accuracy_score_value, precision_score_value, recall_score_value, micro_f1_score_value, macro_f1_score_value, roc_auc_score_value, average_precision_score_value
+    return df_cm, recall_score_value, roc_auc_score_value, average_precision_score_value
 
 
 
