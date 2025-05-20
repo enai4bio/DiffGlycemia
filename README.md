@@ -1,8 +1,10 @@
 # DiffGlycemia
 
-![Diffusion Adaption](images/workflow3.jpg "workflow")
-
 ![Diffusion Adaption](images/adaption.jpg "framework")
+
+# Workflow
+
+![Diffusion Adaption](images/workflow3.jpg "workflow")
 
 ## 🔧 Prepare Conda Environment
 
