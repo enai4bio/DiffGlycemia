@@ -6,33 +6,55 @@ device = "cuda:0"
 n_trials = 1
 
 [data]
-real_data_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/data_training/preg/"
-lambdas_scalers_path = "data_training/preg/lambdas_scalers.pkl"
+real_data_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/data_training/cvd/"
+lambdas_scalers_path = "data_training/cvd/lambdas_scalers.pkl"
 numerical_feature_column_path = "numerical_feture_columns.csv"
 categorical_feature_column_path = "categorical_feature_columns.csv"
 
 [data.y]
 num_classes = 2
-label_column = "Adverse Pregnancy Outcome"
+label_column = "CVDs"
 
 [data.x]
-n_numerical_features = 8
+n_numerical_features = 14
+n_categorical_features = 10
 numerical_feature_columns = [
-    "Systolic Blood Pressure",
-    "Diastolic Blood Pressure",
-    "HbA1c",
-    "OGTT Insulin 60 min",
-    "OGTT Insulin 120 min",
-    "OGTT Insulin 180 min",
-    "Urea",
-    "Infant Weight",
+    "age",
+    "height",
+    "weight",
+    "waist",
+    "hip",
+    "fpg",
+    "fin",
+    "tg",
+    "tc",
+    "hdl",
+    "ldl",
+    "crp",
+    "SBP",
+    "DBP",
 ]
-n_categorical_features = 2
 categorical_feature_columns = [
-    "Surgical Method A",
-    "Surgical Method C",
+    "sex",
+    "htn1",
+    "dyl1",
+    "ms",
+    "IGT",
+    "IFG",
+    "both_IFG_IGT",
+    "PreDM",
+    "DM",
+    "DM_PreDM",
 ]
 num_classes = [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
     2,
     2,
 ]
@@ -52,23 +74,26 @@ trial_dir = "./exp/trial_00"
 trained_model_dir = "./exp/trial_00/trained_model"
 n_trained_model_dir_list = 3
 dataset_path = "./exp/trial_00/trained_model/dataset_path.pkl"
-batch_size = 2408
-epoch = 8000
-steps = 8000
+batch_size = 1767
+epoch = 7500
+steps = 7500
 change_val = "False"
 init_lr = 0.0002288113668475521
-anneal = "True"
-anneal_method = "linear"
-decay_rate = 0.3
+anneal = "False"
+anneal_method = ""
+decay_rate = 0.0
 weight_decay = 0.0
 balance_loss_method = ""
 
 [train_mlp_params]
-dim_in = 12
-dim_t = 256
+dim_in = 34
+dim_t = 128
 d_layers = [
-    256,
-    256,
+    512,
+    512,
+    512,
+    512,
+    512,
     256,
 ]
 dropout = 0.0
@@ -82,8 +107,8 @@ parametrization = "x0"
 scheduler = "cosine"
 
 [sample.main]
-best_model_dir = "./exp/trial_00/trained_model/step_008000"
-best_model_path = "./exp/trial_00/trained_model/step_008000/diffusion.pt"
+best_model_dir = "./exp/trial_00/trained_model/step_006136"
+best_model_path = "./exp/trial_00/trained_model/step_006136/diffusion.pt"
 seed = 2
 sample_dir = "./exp/trial_00/sample_02"
 n_sample_batches = 3
@@ -91,11 +116,11 @@ n_generate_times = 10
 n_sample_times = 4
 balance_sample_method = ""
 smote_testset_only = ""
-d_in_similarity = "/media/jie/toshiba_4t/7exp_t/tang/preg/exp/trial_21/trained_model/step_1466/d_in_similarity.csv"
+d_in_similarity = "/media/jie/toshiba_4t/7exp_t/tang/cvds/exp/trial_21/trained_model/step_1466/d_in_similarity.csv"
 average_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_05/trained_model/step_1362/move_ave.pt"
 
 [eval.main]
-epoch_dir = "./exp/trial_00/sample_02/epochs_008000_random_generated/"
-eval_dir = "./exp/trial_00/eval/epochs_008000/sample_02"
+epoch_dir = "./exp/trial_00/sample_02/epochs_006136_random_generated/"
+eval_dir = "./exp/trial_00/eval/epochs_006136/sample_02"
 seed = 2
 shuffle_switch = "False"

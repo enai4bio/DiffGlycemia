@@ -14,7 +14,7 @@ git clone https://github.com/enai4bio/DiffGlycemia.git
 conda env create -f environment.yml
 ```
 
-## 🧠 Run Training for CVD Events
+## 🧠 Training for CVD Events
 
 ```bash
 conda activate diff_glycemia
@@ -26,7 +26,7 @@ cp config_bak/cvds/config.toml exp/config.toml
 python scripts/tune_ddpm.py --wd . --job train_sample_eval
 ```
 
-## 🤰Run Training for Adverse Pregnancy Outcomes
+## 🤰 Training for Adverse Pregnancy Outcomes
 
 ```bash
 conda activate diff_glymecia
