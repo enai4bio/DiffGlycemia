@@ -1,6 +1,6 @@
 # DiffGlycemia
 
-![Diffusion Adaption](images/workflow3.jpg "workflow")
+![Diffusion Adaption](images/workflow2.jpg "workflow")
 
 ![Diffusion Adaption](images/adaption.jpg "framework")
 
@@ -54,4 +54,6 @@ cd DiffGlycemia/data_synthetic
 cd DiffGlycemia/data_training
 ```
 
-**Note**: DiffGlycemia/data_training is sampled from DiffGlycemia/data_synthetic, preserving the original proportion between majority and minority classes. The dataset is then split into training, validation, and test subsets. To preserve participant privacy, we provide synthetic data that can be used to re-run the code.
+**Note**: To preserve participant privacy, we provide synthetic data that can be used to re-run the code. Therefore, DiffGlycemia/data_training is sampled from DiffGlycemia/data_synthetic, preserving the original proportion between majority and minority classes. The dataset is then split into training, validation, and test subsets. 
+
+
