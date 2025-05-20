@@ -1,6 +1,6 @@
 # DiffGlycemia
 
-![Diffusion Adaption](images/workflow.jpg "workflow")
+![Diffusion Adaption](images/workflow3.jpg "workflow")
 
 ![Diffusion Adaption](images/adaption.jpg "framework")
 
