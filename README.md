@@ -11,8 +11,6 @@
 ```bash
 git clone https://github.com/enai4bio/DiffGlycemia.git
 
-cd DiffGlycemia
-
 conda env create -f environment.yml
 ```
 
@@ -20,8 +18,6 @@ conda env create -f environment.yml
 
 ```bash
 conda activate diff_glycemia
-
-cd DiffGlycemia
 
 rm -rf exp/*
 
@@ -35,8 +31,6 @@ python scripts/tune_ddpm.py --wd . --job train_sample_eval
 ```bash
 conda activate diff_glymecia
 
-cd DiffGlycemia
-
 rm -rf exp/*
 
 cp config_bak/preg/config.toml exp/config.toml
@@ -47,13 +41,13 @@ python scripts/tune_ddpm.py --wd . --job train_sample_eval
 ## 🧪 Synthetic data
 
 ```bash
-cd DiffGlycemia/data_synthetic
+cd data_synthetic
 ```
 
 ## 📊 Training data
 
 ```bash
-cd DiffGlycemia/data_training
+cd data_training
 ```
 
 **Note**: To preserve participant privacy, we provide synthetic data that can be used to re-run the code. Therefore, DiffGlycemia/data_training is sampled from DiffGlycemia/data_synthetic, preserving the original proportion between majority and minority classes. The dataset is then split into training, validation, and test subsets. 
