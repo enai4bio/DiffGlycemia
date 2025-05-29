@@ -99,9 +99,9 @@ scheduler = "cosine"
 [sample.main]
 best_model_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/step_005822"
 best_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/trained_model/step_005822/diffusion.pt"
-seed = 0
-sample_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_00"
-n_sample_batches = 1
+seed = 14
+sample_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_14"
+n_sample_batches = 15
 n_generate_times = 10
 n_sample_times = 4
 balance_sample_method = ""
@@ -110,8 +110,8 @@ d_in_similarity = "/media/jie/toshiba_4t/7exp_t/tang/cvds/exp/trial_21/trained_m
 average_model_path = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_05/trained_model/step_1362/move_ave.pt"
 
 [eval.main]
-epoch_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_00/epochs_005822_random_generated/"
-eval_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/eval/epochs_005822/sample_00"
-seed = 0
+epoch_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_14/epochs_005822_random_generated/"
+eval_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/eval/epochs_005822/sample_14"
+seed = 14
 shuffle_switch = "False"
 n_estimators = 600
