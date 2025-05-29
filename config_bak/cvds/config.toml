@@ -124,3 +124,4 @@ epoch_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/sample_
 eval_dir = "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia/exp/trial_00/eval/epochs_006136/sample_02"
 seed = 2
 shuffle_switch = "False"
+n_estimators = 300

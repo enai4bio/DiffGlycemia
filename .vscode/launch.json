@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "python": "/home/jie/anaconda3/envs/tddpm/bin/python",
+            "env": "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+
+                "--wd", "/media/jie/toshiba_4t/7exp_t/tang/DiffGlycemia",
+                
+                // "--job", "train",
+                // "--job", "train_sample",
+                "--job", "train_sample_eval",
+
+                // "--job", "sample",
+                // "--job", "sample_eval",
+
+                // "--job", "eval",
+                
+            ]
+        }
+    ]
+}

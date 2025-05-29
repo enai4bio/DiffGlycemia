@@ -94,10 +94,11 @@ def balance_dataset(X_, y_, verbose=False):
 def run_rondom_forest(X_,y_,raw_config):
     shuffle_switch = ast.literal_eval(raw_config['eval']['main']['shuffle_switch'])
     seed = raw_config['eval']['main']['seed']
+    n_estimators = raw_config['eval']['main']['n_estimators']
     if shuffle_switch:
         X_, y_ = shuffle(X_, y_, random_state=seed)
     clf_rf = RandomForestClassifier(
-                n_estimators=300,
+                n_estimators=n_estimators,
                 random_state=seed,
                 class_weight='balanced',
                 n_jobs=-1,
