@@ -52,13 +52,19 @@ cp config_bak/preg/config.toml exp/config.toml
 python scripts/tune_ddpm.py --wd . --job train_sample_eval
 ```
 
-## 🧪 Synthetic data
+## 🔗 Browsing CHARLS open data
+
+```bash
+cd data_CHARLs
+```
+
+## 🧪 Browsing Synthetic data
 
 ```bash
 cd data_synthetic
 ```
 
-## 📊 Training data
+## 📊 Browsing Training data
 
 ```bash
 cd data_training
