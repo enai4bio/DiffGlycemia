@@ -27,7 +27,7 @@ python scripts/tune_ddpm.py --wd . --job train_sample_eval
 
 ```
 
-## 🧠 Training for CVD Events (on the hospital's syntherics data)
+## 🔍 Training for CVD Events (on the hospital's syntherics data)
 
 
 ```bash
