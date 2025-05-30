@@ -14,7 +14,7 @@ git clone https://github.com/enai4bio/DiffGlycemia.git
 conda env create -f environment.yml
 ```
 
-## 🧠 Training for CVD Events (on the CHARLS open data)
+## 🧠 Train for CVD Events (on the CHARLS open data)
 
 ```bash
 conda activate diff_glycemia
@@ -27,7 +27,7 @@ python scripts/tune_ddpm.py --wd . --job train_sample_eval
 
 ```
 
-## 🔍 Training for CVD Events (on the hospital's syntherics data)
+## 🔍 Train for CVD Events (on the hospital's syntherics data)
 
 
 ```bash
@@ -40,7 +40,7 @@ cp config_bak/cvds/config.toml exp/config.toml
 python scripts/tune_ddpm.py --wd . --job train_sample_eval
 ```
 
-## 🤰 Training for Adverse Pregnancy Outcomes (on the hospital's syntherics data)
+## 🤰 Train for Pregnancy Outcomes (on the hospital's syntherics data)
 
 ```bash
 conda activate diff_glymecia
@@ -52,19 +52,19 @@ cp config_bak/preg/config.toml exp/config.toml
 python scripts/tune_ddpm.py --wd . --job train_sample_eval
 ```
 
-## 🔗 Browsing CHARLS open data
+## 🔗 Browse CHARLS open data
 
 ```bash
 cd data_CHARLs
 ```
 
-## 🧪 Browsing Synthetic data
+## 🧪 Browse Synthetic data
 
 ```bash
 cd data_synthetic
 ```
 
-## 📊 Browsing Training data
+## 📊 Browse Training data
 
 ```bash
 cd data_training
